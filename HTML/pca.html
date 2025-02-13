@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.6.40">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>PCA</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="pca_files/libs/clipboard/clipboard.min.js"></script>
+<script src="pca_files/libs/quarto-html/quarto.js"></script>
+<script src="pca_files/libs/quarto-html/popper.min.js"></script>
+<script src="pca_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="pca_files/libs/quarto-html/anchor.min.js"></script>
+<link href="pca_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="pca_files/libs/quarto-html/quarto-syntax-highlighting-549806ee2085284f45b00abea8c6df48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="pca_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="pca_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="pca_files/libs/bootstrap/bootstrap-8a79a254b8e706d3c925cde0a310d4f0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">PCA</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div id="cell-1" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> factor_analyzer.factor_analyzer <span class="im">import</span> calculate_bartlett_sphericity, calculate_kmo</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.pipeline <span class="im">import</span> make_pipeline</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.decomposition <span class="im">import</span> PCA</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.preprocessing <span class="im">import</span> StandardScaler</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>movies_data <span class="op">=</span> pd.read_csv(<span class="st">"movies/movies.csv"</span>,  encoding<span class="op">=</span><span class="st">'latin-1'</span>)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Leer datos de un csv</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>movies_data</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">id</th>
+<th data-quarto-table-cell-role="th">budget</th>
+<th data-quarto-table-cell-role="th">genres</th>
+<th data-quarto-table-cell-role="th">homePage</th>
+<th data-quarto-table-cell-role="th">productionCompany</th>
+<th data-quarto-table-cell-role="th">productionCompanyCountry</th>
+<th data-quarto-table-cell-role="th">productionCountry</th>
+<th data-quarto-table-cell-role="th">revenue</th>
+<th data-quarto-table-cell-role="th">runtime</th>
+<th data-quarto-table-cell-role="th">video</th>
+<th data-quarto-table-cell-role="th">...</th>
+<th data-quarto-table-cell-role="th">popularity</th>
+<th data-quarto-table-cell-role="th">releaseDate</th>
+<th data-quarto-table-cell-role="th">voteAvg</th>
+<th data-quarto-table-cell-role="th">voteCount</th>
+<th data-quarto-table-cell-role="th">genresAmount</th>
+<th data-quarto-table-cell-role="th">productionCoAmount</th>
+<th data-quarto-table-cell-role="th">productionCountriesAmount</th>
+<th data-quarto-table-cell-role="th">actorsAmount</th>
+<th data-quarto-table-cell-role="th">castWomenAmount</th>
+<th data-quarto-table-cell-role="th">castMenAmount</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>5</td>
+<td>4000000</td>
+<td>Crime|Comedy</td>
+<td>https://www.miramax.com/movie/four-rooms/</td>
+<td>Miramax|A Band Apart</td>
+<td>US|US</td>
+<td>United States of America</td>
+<td>4257354.0</td>
+<td>98</td>
+<td>False</td>
+<td>...</td>
+<td>20.880</td>
+<td>1995-12-09</td>
+<td>5.7</td>
+<td>2077</td>
+<td>2</td>
+<td>2</td>
+<td>1</td>
+<td>25</td>
+<td>15</td>
+<td>9</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>6</td>
+<td>21000000</td>
+<td>Action|Thriller|Crime</td>
+<td>NaN</td>
+<td>Universal Pictures|Largo Entertainment|JVC</td>
+<td>US|US|JP</td>
+<td>Japan|United States of America</td>
+<td>12136938.0</td>
+<td>110</td>
+<td>False</td>
+<td>...</td>
+<td>9.596</td>
+<td>1993-10-15</td>
+<td>6.5</td>
+<td>223</td>
+<td>3</td>
+<td>3</td>
+<td>2</td>
+<td>15</td>
+<td>3</td>
+<td>9</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>11</td>
+<td>11000000</td>
+<td>Adventure|Action|Science Fiction</td>
+<td>http://www.starwars.com/films/star-wars-episod...</td>
+<td>Lucasfilm|20th Century Fox</td>
+<td>US|US</td>
+<td>United States of America</td>
+<td>775398007.0</td>
+<td>121</td>
+<td>NaN</td>
+<td>...</td>
+<td>100.003</td>
+<td>1977-05-25</td>
+<td>8.2</td>
+<td>16598</td>
+<td>3</td>
+<td>2</td>
+<td>1</td>
+<td>105</td>
+<td>5</td>
+<td>62</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>12</td>
+<td>94000000</td>
+<td>Animation|Family</td>
+<td>http://movies.disney.com/finding-nemo</td>
+<td>Pixar</td>
+<td>US</td>
+<td>United States of America</td>
+<td>940335536.0</td>
+<td>100</td>
+<td>NaN</td>
+<td>...</td>
+<td>134.435</td>
+<td>2003-05-30</td>
+<td>7.8</td>
+<td>15928</td>
+<td>2</td>
+<td>1</td>
+<td>1</td>
+<td>24</td>
+<td>5</td>
+<td>18</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>13</td>
+<td>55000000</td>
+<td>Comedy|Drama|Romance</td>
+<td>NaN</td>
+<td>Paramount|The Steve Tisch Company</td>
+<td>US|</td>
+<td>United States of America</td>
+<td>677387716.0</td>
+<td>142</td>
+<td>False</td>
+<td>...</td>
+<td>58.751</td>
+<td>1994-07-06</td>
+<td>8.5</td>
+<td>22045</td>
+<td>3</td>
+<td>2</td>
+<td>1</td>
+<td>76</td>
+<td>18</td>
+<td>48</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">9995</td>
+<td>920081</td>
+<td>0</td>
+<td>Action|Horror</td>
+<td>NaN</td>
+<td>NaN</td>
+<td>NaN</td>
+<td>NaN</td>
+<td>0.0</td>
+<td>100</td>
+<td>False</td>
+<td>...</td>
+<td>16.662</td>
+<td>2021-11-26</td>
+<td>6.8</td>
+<td>108</td>
+<td>2</td>
+<td>1</td>
+<td>1</td>
+<td>10</td>
+<td>2</td>
+<td>4</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9996</td>
+<td>920143</td>
+<td>0</td>
+<td>Comedy</td>
+<td>NaN</td>
+<td>Caracol Televisiï¿½n|Dago Garcï¿½a Producciones</td>
+<td>CO|CO</td>
+<td>Colombia</td>
+<td>0.0</td>
+<td>97</td>
+<td>False</td>
+<td>...</td>
+<td>491.706</td>
+<td>2021-12-25</td>
+<td>1.5</td>
+<td>2</td>
+<td>1</td>
+<td>2</td>
+<td>1</td>
+<td>8</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">9997</td>
+<td>922017</td>
+<td>0</td>
+<td>Comedy</td>
+<td>NaN</td>
+<td>NaN</td>
+<td>NaN</td>
+<td>Nigeria</td>
+<td>0.0</td>
+<td>112</td>
+<td>False</td>
+<td>...</td>
+<td>565.658</td>
+<td>2021-12-17</td>
+<td>6.1</td>
+<td>30</td>
+<td>1</td>
+<td>1</td>
+<td>17</td>
+<td>1</td>
+<td>0</td>
+<td>922017</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9998</td>
+<td>922162</td>
+<td>0</td>
+<td>NaN</td>
+<td>https://www.netflix.com/title/81425229</td>
+<td>NaN</td>
+<td>NaN</td>
+<td>United States of America</td>
+<td>0.0</td>
+<td>59</td>
+<td>False</td>
+<td>...</td>
+<td>9.664</td>
+<td>2021-12-17</td>
+<td>6.0</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>922162</td>
+<td>The Witcher: Fireplace</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">9999</td>
+<td>922260</td>
+<td>254056</td>
+<td>Mystery|Thriller|Horror</td>
+<td>NaN</td>
+<td>Central Partnership|KIT Film Studio</td>
+<td>RU|RU</td>
+<td>Russia</td>
+<td>254042.0</td>
+<td>0</td>
+<td>NaN</td>
+<td>...</td>
+<td>83.747</td>
+<td>2021-11-11</td>
+<td>4.7</td>
+<td>3</td>
+<td>3</td>
+<td>2</td>
+<td>1</td>
+<td>8</td>
+<td>4</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+
+<p>10000 rows × 27 columns</p>
+</div>
+</div>
+</div>
+<section id="estudie-si-es-posible-hacer-transformaciones-en-las-variables-categóricas-para-incluirlas-en-el-pca-valdrá-la-pena" class="level2">
+<h2 class="anchored" data-anchor-id="estudie-si-es-posible-hacer-transformaciones-en-las-variables-categóricas-para-incluirlas-en-el-pca-valdrá-la-pena">1) Estudie si es posible hacer transformaciones en las variables categóricas para incluirlas en el PCA, ¿valdrá la pena?</h2>
+<p>Podría valer la pena transformar variables como genresAmount, productionCoAmount, productionCountriesAmount, actorsAmount y popularity. Variables como director, actors, originalTitle, title, homePage, releaseDate y video probablemente no aportan información útil para el PCA, castWomenAmount y castMenAmount no se toman en cuenta por el actorsAmount, que es un dato mas general y mejor de cuantos actores trabajaron en la pelicula.</p>
+<div id="cell-5" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>pca_dataset <span class="op">=</span> movies_data[[<span class="st">'budget'</span>, <span class="st">'revenue'</span>, <span class="st">'runtime'</span>, <span class="st">'voteAvg'</span>, <span class="st">'voteCount'</span>, <span class="st">'genresAmount'</span>, <span class="st">'productionCoAmount'</span>, <span class="st">'productionCountriesAmount'</span>, <span class="st">'actorsAmount'</span>, <span class="st">'popularity'</span>]].dropna()</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>pca_dataset</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="2">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">budget</th>
+<th data-quarto-table-cell-role="th">revenue</th>
+<th data-quarto-table-cell-role="th">runtime</th>
+<th data-quarto-table-cell-role="th">voteAvg</th>
+<th data-quarto-table-cell-role="th">voteCount</th>
+<th data-quarto-table-cell-role="th">genresAmount</th>
+<th data-quarto-table-cell-role="th">productionCoAmount</th>
+<th data-quarto-table-cell-role="th">productionCountriesAmount</th>
+<th data-quarto-table-cell-role="th">actorsAmount</th>
+<th data-quarto-table-cell-role="th">popularity</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>4000000</td>
+<td>4257354.0</td>
+<td>98</td>
+<td>5.7</td>
+<td>2077</td>
+<td>2</td>
+<td>2</td>
+<td>1</td>
+<td>25</td>
+<td>20.880</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>21000000</td>
+<td>12136938.0</td>
+<td>110</td>
+<td>6.5</td>
+<td>223</td>
+<td>3</td>
+<td>3</td>
+<td>2</td>
+<td>15</td>
+<td>9.596</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>11000000</td>
+<td>775398007.0</td>
+<td>121</td>
+<td>8.2</td>
+<td>16598</td>
+<td>3</td>
+<td>2</td>
+<td>1</td>
+<td>105</td>
+<td>100.003</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>94000000</td>
+<td>940335536.0</td>
+<td>100</td>
+<td>7.8</td>
+<td>15928</td>
+<td>2</td>
+<td>1</td>
+<td>1</td>
+<td>24</td>
+<td>134.435</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>55000000</td>
+<td>677387716.0</td>
+<td>142</td>
+<td>8.5</td>
+<td>22045</td>
+<td>3</td>
+<td>2</td>
+<td>1</td>
+<td>76</td>
+<td>58.751</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">9995</td>
+<td>0</td>
+<td>0.0</td>
+<td>100</td>
+<td>6.8</td>
+<td>108</td>
+<td>2</td>
+<td>1</td>
+<td>1</td>
+<td>10</td>
+<td>16.662</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9996</td>
+<td>0</td>
+<td>0.0</td>
+<td>97</td>
+<td>1.5</td>
+<td>2</td>
+<td>1</td>
+<td>2</td>
+<td>1</td>
+<td>8</td>
+<td>491.706</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">9997</td>
+<td>0</td>
+<td>0.0</td>
+<td>112</td>
+<td>6.1</td>
+<td>30</td>
+<td>1</td>
+<td>1</td>
+<td>17</td>
+<td>1</td>
+<td>565.658</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9998</td>
+<td>0</td>
+<td>0.0</td>
+<td>59</td>
+<td>6.0</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>9.664</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">9999</td>
+<td>254056</td>
+<td>254042.0</td>
+<td>0</td>
+<td>4.7</td>
+<td>3</td>
+<td>3</td>
+<td>2</td>
+<td>1</td>
+<td>8</td>
+<td>83.747</td>
+</tr>
+</tbody>
+</table>
+
+<p>10000 rows × 10 columns</p>
+</div>
+</div>
+</div>
+</section>
+<section id="es-conveniente-hacer-un-análisis-de-componentes-principales" class="level2">
+<h2 class="anchored" data-anchor-id="es-conveniente-hacer-un-análisis-de-componentes-principales">2) Es conveniente hacer un Análisis de Componentes Principales?</h2>
+<section id="test-de-esfericidad-de-bartlett." class="level3">
+<h3 class="anchored" data-anchor-id="test-de-esfericidad-de-bartlett.">test de esfericidad de Bartlett.</h3>
+<div id="cell-8" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>xi_cuadrado, p_value <span class="op">=</span> calculate_bartlett_sphericity(pca_dataset)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'Valor Chi-cuadrado: </span><span class="sc">{</span>xi_cuadrado<span class="sc">}</span><span class="ss">'</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'Valor p: </span><span class="sc">{</span>p_value<span class="sc">}</span><span class="ss">'</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> p_value <span class="op">&lt;</span> <span class="fl">0.05</span>:</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Segun la prueba de Esfericidad de Bartlett, se puede aplicar PCA"</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Segun la prueba de Esfericidad de Bartlett, no se puede aplicar PCA"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Valor Chi-cuadrado: 21381.33617327996
+Valor p: 0.0
+Segun la prueba de Esfericidad de Bartlett, se puede aplicar PCA</code></pre>
+</div>
+</div>
+</section>
+<section id="indice-kmo" class="level3">
+<h3 class="anchored" data-anchor-id="indice-kmo">Indice KMO</h3>
+<div id="cell-10" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>kmo, kmo_model <span class="op">=</span> calculate_kmo(pca_dataset)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'Índice KMO: </span><span class="sc">{</span>kmo_model<span class="sc">}</span><span class="ss">'</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="fl">0.90</span> <span class="op">&lt;</span> kmo_model <span class="op">&lt;</span> <span class="fl">1.00</span>:</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Variables estan muy correlacionadas, Se puede usar PCA"</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="cf">elif</span> <span class="fl">0.80</span> <span class="op">&lt;</span> kmo_model <span class="op">&lt;</span> <span class="fl">0.89</span>:</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Variables correlacionadas, Se puede usar PCA"</span>)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="cf">elif</span> <span class="fl">0.70</span> <span class="op">&lt;</span> kmo_model <span class="op">&lt;</span> <span class="fl">0.79</span>:</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Se puede usar PCA aunque no es recomendable"</span>)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="cf">elif</span> kmo_model <span class="op">&lt;</span> <span class="fl">0.68</span>:</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Se recomienda no usar PCA"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Índice KMO: 0.7131675893406781
+Se puede usar PCA aunque no es recomendable</code></pre>
+</div>
+</div>
+</section>
+<section id="al-tener-las-dos-pruebas-con-valores-recomendados-y-aceptables-se-hara-el-pca" class="level3">
+<h3 class="anchored" data-anchor-id="al-tener-las-dos-pruebas-con-valores-recomendados-y-aceptables-se-hara-el-pca">Al tener las dos pruebas con valores recomendados y aceptables, se hara el PCA</h3>
+</section>
+</section>
+<section id="pca" class="level2">
+<h2 class="anchored" data-anchor-id="pca">3) PCA</h2>
+<div id="cell-13" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>pca_pipe <span class="op">=</span> make_pipeline(StandardScaler(), PCA())</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>pca_pipe.fit(pca_dataset)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>model_pca <span class="op">=</span> pca_pipe.named_steps[<span class="st">"pca"</span>]</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'Cantidad de Componentes Generados: </span><span class="sc">{</span><span class="bu">len</span>(model_pca.components_)<span class="sc">}</span><span class="ss">'</span>)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Resultado del PCA:"</span>)</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    data <span class="op">=</span> model_pca.components_,</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    columns <span class="op">=</span> pca_dataset.columns,</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    index <span class="op">=</span> [<span class="st">'PC1'</span>,<span class="st">'PC2'</span>,<span class="st">'PC3'</span>,<span class="st">'PC4'</span>,<span class="st">'PC5'</span>,<span class="st">'PC6'</span>,<span class="st">'PC7'</span>, <span class="st">'PC8'</span>, <span class="st">'PC9'</span>, <span class="st">'PC10'</span>]</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Cantidad de Componentes Generados: 10
+Resultado del PCA:</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">budget</th>
+<th data-quarto-table-cell-role="th">revenue</th>
+<th data-quarto-table-cell-role="th">runtime</th>
+<th data-quarto-table-cell-role="th">voteAvg</th>
+<th data-quarto-table-cell-role="th">voteCount</th>
+<th data-quarto-table-cell-role="th">genresAmount</th>
+<th data-quarto-table-cell-role="th">productionCoAmount</th>
+<th data-quarto-table-cell-role="th">productionCountriesAmount</th>
+<th data-quarto-table-cell-role="th">actorsAmount</th>
+<th data-quarto-table-cell-role="th">popularity</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">PC1</td>
+<td>0.512325</td>
+<td>0.537284</td>
+<td>0.284490</td>
+<td>0.184140</td>
+<td>0.521470</td>
+<td>0.153101</td>
+<td>0.119336</td>
+<td>-0.037235</td>
+<td>-0.043034</td>
+<td>0.145452</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">PC2</td>
+<td>-0.150047</td>
+<td>-0.181040</td>
+<td>0.486020</td>
+<td>0.282935</td>
+<td>-0.064806</td>
+<td>-0.139956</td>
+<td>0.488891</td>
+<td>0.329017</td>
+<td>-0.471147</td>
+<td>-0.188171</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">PC3</td>
+<td>-0.236831</td>
+<td>-0.110413</td>
+<td>0.190988</td>
+<td>0.753104</td>
+<td>0.025573</td>
+<td>-0.014419</td>
+<td>-0.398266</td>
+<td>-0.401133</td>
+<td>0.044257</td>
+<td>0.075726</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">PC4</td>
+<td>0.001453</td>
+<td>-0.113343</td>
+<td>-0.023941</td>
+<td>-0.058728</td>
+<td>-0.101947</td>
+<td>0.675588</td>
+<td>0.363307</td>
+<td>-0.545875</td>
+<td>-0.096965</td>
+<td>-0.277388</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">PC5</td>
+<td>-0.065044</td>
+<td>-0.083941</td>
+<td>0.043935</td>
+<td>0.283518</td>
+<td>-0.041700</td>
+<td>0.380962</td>
+<td>0.204612</td>
+<td>0.473471</td>
+<td>0.702483</td>
+<td>0.003990</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">PC6</td>
+<td>-0.047124</td>
+<td>-0.100497</td>
+<td>-0.127727</td>
+<td>0.044658</td>
+<td>-0.159946</td>
+<td>0.325837</td>
+<td>0.061293</td>
+<td>0.120870</td>
+<td>-0.316740</td>
+<td>0.847896</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">PC7</td>
+<td>-0.030375</td>
+<td>-0.066737</td>
+<td>0.156851</td>
+<td>-0.078101</td>
+<td>-0.045032</td>
+<td>-0.455371</td>
+<td>0.530126</td>
+<td>-0.437848</td>
+<td>0.393879</td>
+<td>0.355875</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">PC8</td>
+<td>0.062390</td>
+<td>-0.103677</td>
+<td>0.771011</td>
+<td>-0.401389</td>
+<td>-0.220674</td>
+<td>0.167877</td>
+<td>-0.355517</td>
+<td>-0.029313</td>
+<td>0.125771</td>
+<td>0.099185</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">PC9</td>
+<td>0.697691</td>
+<td>-0.026115</td>
+<td>-0.082344</td>
+<td>0.255685</td>
+<td>-0.649866</td>
+<td>-0.114361</td>
+<td>-0.008804</td>
+<td>-0.006262</td>
+<td>-0.005941</td>
+<td>-0.069523</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">PC10</td>
+<td>-0.401098</td>
+<td>0.787707</td>
+<td>0.041406</td>
+<td>0.021480</td>
+<td>-0.460922</td>
+<td>0.020485</td>
+<td>0.054870</td>
+<td>-0.009043</td>
+<td>-0.002504</td>
+<td>-0.022255</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="cell-14" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'----------------------------------------------------</span><span class="ch">\n</span><span class="st">Porcentaje de varianza explicada por cada componente</span><span class="ch">\n</span><span class="st">----------------------------------------------------'</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model_pca.explained_variance_ratio_)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>----------------------------------------------------
+Porcentaje de varianza explicada por cada componente
+----------------------------------------------------
+[0.27481006 0.11490125 0.1039553  0.10022744 0.097273   0.09668467
+ 0.09026598 0.07155123 0.03180707 0.01852401]</code></pre>
+</div>
+</div>
+<section id="visualizacion-de-variables" class="level3">
+<h3 class="anchored" data-anchor-id="visualizacion-de-variables">Visualizacion de variables</h3>
+<div id="cell-16" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">## Heatmap</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(nrows<span class="op">=</span><span class="dv">1</span>, ncols<span class="op">=</span><span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">6</span>))</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>componentes <span class="op">=</span> model_pca.components_</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>plt.imshow(componentes.T)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>plt.yticks(<span class="bu">range</span>(<span class="bu">len</span>(pca_dataset.columns)), pca_dataset.columns)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>plt.xticks(<span class="bu">range</span>(<span class="bu">len</span>(pca_dataset.columns)), np.arange(model_pca.n_components_)<span class="op">+</span><span class="dv">1</span>)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>plt.grid(<span class="va">False</span>)</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>plt.colorbar()<span class="op">;</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co">## Scree Plot</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(nrows<span class="op">=</span><span class="dv">1</span>, ncols<span class="op">=</span><span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">6</span>))</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>ax.bar(</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>    x      <span class="op">=</span> np.arange(model_pca.n_components_) <span class="op">+</span> <span class="dv">1</span>,</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>    height <span class="op">=</span> model_pca.explained_variance_ratio_</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> x, y <span class="kw">in</span> <span class="bu">zip</span>(np.arange(<span class="bu">len</span>(pca_dataset.columns)) <span class="op">+</span> <span class="dv">1</span>, model_pca.explained_variance_ratio_):</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    label <span class="op">=</span> <span class="bu">round</span>(y, <span class="dv">2</span>)</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>    ax.annotate(</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>        label,</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>        (x,y),</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>        textcoords<span class="op">=</span><span class="st">"offset points"</span>,</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>        xytext<span class="op">=</span>(<span class="dv">0</span>,<span class="dv">10</span>),</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>        ha<span class="op">=</span><span class="st">'center'</span></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>ax.set_xticks(np.arange(model_pca.n_components_) <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>ax.set_ylim(<span class="dv">0</span>, <span class="fl">1.1</span>)</span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">'Porcentaje de varianza explicada por cada componente'</span>)</span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">'Componente principal'</span>)</span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">'Por. varianza explicada'</span>)<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="pca_files/figure-html/cell-8-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="pca_files/figure-html/cell-8-output-2.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="regla-80-90" class="level3">
+<h3 class="anchored" data-anchor-id="regla-80-90">Regla 80%-90%</h3>
+<div id="cell-18" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Porcentaje de varianza explicada acumulada</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>prop_varianza_acum <span class="op">=</span> model_pca.explained_variance_ratio_.cumsum()</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'------------------------------------------'</span>)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'Porcentaje de varianza explicada acumulada'</span>)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'------------------------------------------'</span>)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(prop_varianza_acum)</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(nrows<span class="op">=</span><span class="dv">1</span>, ncols<span class="op">=</span><span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>ax.plot(</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>    np.arange(<span class="bu">len</span>(pca_dataset.columns)) <span class="op">+</span> <span class="dv">1</span>,</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    prop_varianza_acum,</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    marker <span class="op">=</span> <span class="st">'o'</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> x, y <span class="kw">in</span> <span class="bu">zip</span>(np.arange(<span class="bu">len</span>(pca_dataset.columns)) <span class="op">+</span> <span class="dv">1</span>, prop_varianza_acum):</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>    label <span class="op">=</span> <span class="bu">round</span>(y, <span class="dv">2</span>)</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>    ax.annotate(</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>        label,</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>        (x,y),</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>        textcoords<span class="op">=</span><span class="st">"offset points"</span>,</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>        xytext<span class="op">=</span>(<span class="dv">0</span>,<span class="dv">10</span>),</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>        ha<span class="op">=</span><span class="st">'center'</span></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>ax.set_ylim(<span class="dv">0</span>, <span class="fl">1.1</span>)</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>ax.set_xticks(np.arange(model_pca.n_components_) <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">'Porcentaje de varianza explicada acumulada'</span>)</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">'Componente principal'</span>)</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">'Por. varianza acumulada'</span>)<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>------------------------------------------
+Porcentaje de varianza explicada acumulada
+------------------------------------------
+[0.27481006 0.38971131 0.49366661 0.59389405 0.69116705 0.78785172
+ 0.87811769 0.94966892 0.98147599 1.        ]</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="pca_files/figure-html/cell-9-output-2.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="segun-la-regla-la-curva-donde-mas-componentes-ya-no-mejoran-significativamente-la-varianza-es-en-los-8-componentes" class="level3">
+<h3 class="anchored" data-anchor-id="segun-la-regla-la-curva-donde-mas-componentes-ya-no-mejoran-significativamente-la-varianza-es-en-los-8-componentes">Segun la regla, la curva donde mas componentes ya no mejoran significativamente la varianza es en los 8 componentes</h3>
+<div id="cell-20" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>cargas <span class="op">=</span> model_pca.components_[:<span class="dv">8</span>]</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    data<span class="op">=</span>cargas,</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    columns<span class="op">=</span>pca_dataset.columns,</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="ss">f'PC</span><span class="sc">{</span>i<span class="op">+</span><span class="dv">1</span><span class="sc">}</span><span class="ss">'</span> <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">8</span>)]</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="9">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">budget</th>
+<th data-quarto-table-cell-role="th">revenue</th>
+<th data-quarto-table-cell-role="th">runtime</th>
+<th data-quarto-table-cell-role="th">voteAvg</th>
+<th data-quarto-table-cell-role="th">voteCount</th>
+<th data-quarto-table-cell-role="th">genresAmount</th>
+<th data-quarto-table-cell-role="th">productionCoAmount</th>
+<th data-quarto-table-cell-role="th">productionCountriesAmount</th>
+<th data-quarto-table-cell-role="th">actorsAmount</th>
+<th data-quarto-table-cell-role="th">popularity</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">PC1</td>
+<td>0.512325</td>
+<td>0.537284</td>
+<td>0.284490</td>
+<td>0.184140</td>
+<td>0.521470</td>
+<td>0.153101</td>
+<td>0.119336</td>
+<td>-0.037235</td>
+<td>-0.043034</td>
+<td>0.145452</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">PC2</td>
+<td>-0.150047</td>
+<td>-0.181040</td>
+<td>0.486020</td>
+<td>0.282935</td>
+<td>-0.064806</td>
+<td>-0.139956</td>
+<td>0.488891</td>
+<td>0.329017</td>
+<td>-0.471147</td>
+<td>-0.188171</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">PC3</td>
+<td>-0.236831</td>
+<td>-0.110413</td>
+<td>0.190988</td>
+<td>0.753104</td>
+<td>0.025573</td>
+<td>-0.014419</td>
+<td>-0.398266</td>
+<td>-0.401133</td>
+<td>0.044257</td>
+<td>0.075726</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">PC4</td>
+<td>0.001453</td>
+<td>-0.113343</td>
+<td>-0.023941</td>
+<td>-0.058728</td>
+<td>-0.101947</td>
+<td>0.675588</td>
+<td>0.363307</td>
+<td>-0.545875</td>
+<td>-0.096965</td>
+<td>-0.277388</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">PC5</td>
+<td>-0.065044</td>
+<td>-0.083941</td>
+<td>0.043935</td>
+<td>0.283518</td>
+<td>-0.041700</td>
+<td>0.380962</td>
+<td>0.204612</td>
+<td>0.473471</td>
+<td>0.702483</td>
+<td>0.003990</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">PC6</td>
+<td>-0.047124</td>
+<td>-0.100497</td>
+<td>-0.127727</td>
+<td>0.044658</td>
+<td>-0.159946</td>
+<td>0.325837</td>
+<td>0.061293</td>
+<td>0.120870</td>
+<td>-0.316740</td>
+<td>0.847896</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">PC7</td>
+<td>-0.030375</td>
+<td>-0.066737</td>
+<td>0.156851</td>
+<td>-0.078101</td>
+<td>-0.045032</td>
+<td>-0.455371</td>
+<td>0.530126</td>
+<td>-0.437848</td>
+<td>0.393879</td>
+<td>0.355875</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">PC8</td>
+<td>0.062390</td>
+<td>-0.103677</td>
+<td>0.771011</td>
+<td>-0.401389</td>
+<td>-0.220674</td>
+<td>0.167877</td>
+<td>-0.355517</td>
+<td>-0.029313</td>
+<td>0.125771</td>
+<td>0.099185</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
